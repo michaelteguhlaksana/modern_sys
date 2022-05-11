@@ -1,0 +1,12 @@
+name: modern_env
+
+
+dependencies:
+
+  - git
+  - python=3.9
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - serial
