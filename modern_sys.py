@@ -12,7 +12,7 @@ class Cam_Arm(object):
 	A Robot arm model for holding the camera for the object recognition
 
 	"""
-	def __init__(self, base_pos, base_orient, seg_lengths, range_trans, range_rot, tol = 0.01, cam_orient = 270, comm_line = None, baud_rate = None, hard_test = False):
+	def __init__(self, base_pos, base_orient, seg_lengths, range_trans, range_rot, tol = 0.01, cam_orient = 270, comm_line = None, baud_rate = None, hard_run = False):
 		super(Cam_Arm, self).__init__()
 		self.home_base_pos = base_pos
 		self.home_base_orient = base_orient
@@ -20,6 +20,12 @@ class Cam_Arm(object):
 		self.range_trans = range_trans
 		self.range_rot = range_rot
 		self.tol = tol
+
+		self.hard_run = hard_run
+		self.baud_rate = baud_rate
+		self.comm_line = comm_line
+		if self.hard_run:
+			self.cnc = serial.Serial(self.comm_line, self.baud_rate)
 
 		self.home_pos = {
 			"base" : self.home_base_pos.copy(),
@@ -78,6 +84,10 @@ class Cam_Arm(object):
 		self.Seg3 = Segment("e2_end", self.Elbow2, self.End)
 
 		self.manager = SegmentManager([self.Seg1, self.Seg2, self.Seg3], self.Seg1.base, self.Seg3.end)
+
+		if self.hard_run:
+			self.setup_connection()
+			self.send_angles()
 
 	def visualize(self, axis_range = [[0,2],[0,2],[0,2]], target = None, has_target = False, plot_name = None, save = False):
 		#self.manager.visualize(axis_range,plot_name, save)
@@ -184,7 +194,7 @@ class Cam_Arm(object):
 		2. Align end to the target, imagin the whole segment move to the target
 		3. New target is the base of the last segment, repeat for the previous segment
 		4. Repeat until the base is reached
-		5.Shift the base and all other segment to the base's original position, 
+		5. Shift the base and all other segment to the base's original position
 		'''
 
 		t_x, t_y, t_z = target
@@ -213,6 +223,9 @@ class Cam_Arm(object):
 			for seg_name, beta_rot in beta_tar.items():
 				self.manager.move_base(seg_name, [0,0,0], [0, beta_rot])
 
+		if self.hard_run:
+			self.send_angles()
+
 		return reach
 
 	def home(self):
@@ -221,6 +234,43 @@ class Cam_Arm(object):
 			trans = [home - curr for home, curr in zip(self.home_pos[joint_name], seg.base.pos)]
 			rot = [home - curr for home, curr in zip(self.home_orient[joint_name], seg.base.orient)]
 			self.manager.move_base(seg_name, trans, rot)
+
+		if self.hard_run:
+			self.send_angles()
+
+
+	def setup_connection(self):
+		self.cnc.close()
+		self.cnc.open()
+
+		'''
+		self.cnc.write(bytes("\r\n\r\n", 'utf-8'))
+		time.sleep(2)   # Wait for grbl to initialize
+		self.cnc.flushInput()
+		'''
+
+		#Homing cycle
+		#self.cnc.write(self.home())
+		self.send_angles()
+		#print(self.cnc.readline())
+
+		time.sleep(10)
+
+	def send_angles(self):
+		joint_dict = self.manager.get_joint_param()
+		base_alpha = joint_dict["base"]["orient"][0]
+		base_beta = joint_dict["base"]["orient"][1]
+		e1_beta = joint_dict["e1"]["orient"][1]
+		e2_beta = joint_dict["e2"]["orient"][1]
+		end_alpha = joint_dict["end"]["orient"][0]
+		end_beta = joint_dict["end"]["orient"][1]
+
+		command = bytes(f"{base_alpha},{base_beta},{e1_beta},{e2_beta},{end_beta},{end_alpha}", 'utf-8')
+		print(F"SENDING COMMAND:: {command}")
+
+		self.cnc.write(command)
+		time.sleep(2)
+		
 
 
 
