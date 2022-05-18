@@ -25,7 +25,7 @@ class Cam_Arm(object):
 		self.baud_rate = baud_rate
 		self.comm_line = comm_line
 		if self.hard_run:
-			self.cnc = serial.Serial(self.comm_line, self.baud_rate)
+			self.cnc = serial.Serial(self.comm_line, self.baud_rate, timeout=1)
 
 		self.home_pos = {
 			"base" : self.home_base_pos.copy(),
@@ -181,7 +181,8 @@ class Cam_Arm(object):
 			
 			beta_res[seg.name] = t_beta - seg.beta
 
-		reach = all([target - self.tol <= posi <= target + self.tol for target, posi in zip([t_x, t_y, t_z], self.manager.base_joint.pos)])
+		#reach = all([target - self.tol <= posi <= target + self.tol for target, posi in zip([t_x, t_y, t_z], self.manager.base_joint.pos)])
+		reach = tol < math.sqrt(sum([(target-posi) ** 2 for target, posi in zip(tar, pos)]))
 		#print(f"REACH::{reach} , {[t - self.tol <= posi <= t + self.tol for t, posi in zip([t_x, t_y, t_z], self.manager.base_joint.pos)]}")
 			
 		return beta_res, reach
@@ -243,14 +244,10 @@ class Cam_Arm(object):
 		self.cnc.close()
 		self.cnc.open()
 
-		'''
-		self.cnc.write(bytes("\r\n\r\n", 'utf-8'))
-		time.sleep(2)   # Wait for grbl to initialize
+		time.sleep(5)   # Wait for grbl to initialize
 		self.cnc.flushInput()
-		'''
 
 		#Homing cycle
-		#self.cnc.write(self.home())
 		self.send_angles()
 		#print(self.cnc.readline())
 
@@ -272,6 +269,108 @@ class Cam_Arm(object):
 		time.sleep(2)
 		
 
+
+
+class Probe_Arm(object):
+	"""
+		The implementation for a robotic arm for managing the probe.
+	"""
+	def __init__(self, self, base_pos, base_orient, seg_lengths, range_trans, tol = 0.01, comm_line = None, baud_rate = None, hard_run = False):
+		super(Probe_Arm, self).__init__()
+		self.home_base_pos = base_pos
+		self.home_base_orient = base_orient
+		self.seg_lengths = seg_lengths
+		self.range_trans = range_trans
+		self.tol = tol
+
+		self.hard_run = hard_run
+		self.baud_rate = baud_rate
+		self.comm_line = comm_line
+		if self.hard_run:
+			self.cnc = serial.Serial(self.comm_line, self.baud_rate)
+
+		self.home_pos = {
+
+			"base" : self.home_base_pos.copy(),
+			"e1" : self.home_base_pos.copy(),
+			"end" : self.home_base_pos.copy()
+		}
+
+		self.home_orient = {
+			"base" : self.home_base_orient.copy(),
+			"e1" : self.home_base_orient.copy(),
+			"end" : self.home_base_orient.copy()
+		}
+
+
+		self.Base = Joint(
+			name = "base", 
+			dof = [[1,0,0],[0,0]], 
+			pos = self.home_pos["base"],
+			orient = self.home_orient["base"],
+			range_trans = self.range_trans[0],
+			range_rot = [[0,0],[0.01,0.01]]
+			)
+
+		self.Elbow1 = Joint(
+			name = "e1", 
+			dof = [[0,1,0],[0,0]], 
+			pos = self.home_pos["e1"],
+			orient = self.home_orient["e1"],
+			range_trans = self.range_trans[1],
+			range_rot = [[0,0],[0.01,0.01]]
+			)
+
+		self.End = Joint(
+			name = "end", 
+			dof = [[0,0,0],[0,0]], 
+			pos = self.home_pos["end"],
+			orient = self.home_orient["end"],
+			range_trans = self.range_trans[2],
+			range_rot = self.range_rot[2]
+			)
+
+		self.Seg1 = Segment("base_e1", self.Base, self.Elbow1)
+		self.Seg2 = Segment("e1_end", self.Elbow1, self.End)
+
+		self.manager = SegmentManager([self.Seg1, self.Seg2], self.Seg1.base, self.Seg2.end)
+
+		if self.hard_run:
+			self.setup_connection()
+			self.send_pos()
+
+	def setup_connection(self):
+		self.cnc.close()
+		self.cnc.open()
+
+		'''
+		
+		time.sleep(2)   # Wait for grbl to initialize
+		self.cnc.flushInput()
+		'''
+
+		#Homing cycle
+		#self.cnc.write(self.home())
+		self.send_pos()
+		#print(self.cnc.readline())
+
+		time.sleep(10)
+
+	def end_to_target(self, target):
+		t_x, t_y, t_z = target
+
+		trans = [tar-curr for tar, curr in zip(target, self.manager.end.pos)]
+
+
+
+
+
+	def send_pos(self):
+		pass
+
+
+
+		
 
 
 
