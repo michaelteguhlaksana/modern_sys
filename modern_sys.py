@@ -182,7 +182,7 @@ class Cam_Arm(object):
 			beta_res[seg.name] = t_beta - seg.beta
 
 		#reach = all([target - self.tol <= posi <= target + self.tol for target, posi in zip([t_x, t_y, t_z], self.manager.base_joint.pos)])
-		reach = tol < math.sqrt(sum([(target-posi) ** 2 for target, posi in zip(tar, pos)]))
+		reach = self.tol < math.sqrt(sum([(tar-posi) ** 2 for tar, posi in zip([t_x, t_y, t_z], self.manager.base_joint.pos)]))
 		#print(f"REACH::{reach} , {[t - self.tol <= posi <= t + self.tol for t, posi in zip([t_x, t_y, t_z], self.manager.base_joint.pos)]}")
 			
 		return beta_res, reach
@@ -262,7 +262,7 @@ class Cam_Arm(object):
 		end_alpha = joint_dict["end"]["orient"][0]
 		end_beta = joint_dict["end"]["orient"][1]
 
-		command = bytes(f"{base_alpha},{base_beta},{e1_beta},{e2_beta},{end_beta},{end_alpha}", 'utf-8')
+		command = bytes(f"{base_alpha};{base_beta};{e1_beta};{e2_beta};{end_beta};{end_alpha}\n", 'utf-8')
 		print(F"SENDING COMMAND:: {command}")
 
 		self.cnc.write(command)
@@ -275,7 +275,7 @@ class Probe_Arm(object):
 	"""
 		The implementation for a robotic arm for managing the probe.
 	"""
-	def __init__(self, self, base_pos, base_orient, seg_lengths, range_trans, tol = 0.01, comm_line = None, baud_rate = None, hard_run = False):
+	def __init__(self, base_pos, base_orient, seg_lengths, range_trans, tol = 0.01, comm_line = None, baud_rate = None, hard_run = False):
 		super(Probe_Arm, self).__init__()
 		self.home_base_pos = base_pos
 		self.home_base_orient = base_orient
