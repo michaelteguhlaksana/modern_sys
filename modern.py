@@ -157,12 +157,12 @@ class Segment(object):
 		self.alpha = math.atan2(self.y_len, self.x_len) * 180/math.pi
 		self.beta = math.atan2(self.z_len, math.sqrt((self.x_len)**2 + (self.y_len)**2) )* 180/math.pi
 		# Angular correction so all angles are positive
-		self.alpha = (self.alpha + 360) % 360
-		self.beta = (self.beta + 360) % 360
+		self.alpha = round((self.alpha + 360) % 360, 2)
+		self.beta = round((self.beta + 360) % 360, 2)
 
 	def update_orient(self, rot):
-		self.alpha = (self.alpha + rot[0] + 360) % 360
-		self.beta = (self.beta + rot[1] + 360) % 360
+		self.alpha = round((self.alpha + rot[0] + 360) % 360, 2)
+		self.beta = round((self.beta + rot[1] + 360) % 360, 2)
 
 	def update_length(self):
 		self.x_len = self.end.x-self.base.x
