@@ -37,8 +37,8 @@ class Cam_Arm(object):
 
 		self.home_orient = {
 			"base" : self.home_base_orient.copy(),
-			"e1" : self.home_base_orient.copy(),
-			"e2" : self.home_base_orient.copy(),
+			"e1" : [self.home_base_orient[0],(self.home_base_orient[1]-90 +360)%360],
+			"e2" : [self.home_base_orient[0],(self.home_base_orient[1]-90 +360)%360],
 			"end" : [self.home_base_orient[0], cam_orient]
 
 			}
@@ -100,6 +100,7 @@ class Cam_Arm(object):
 		y_pos = []
 		z_pos = []
 
+
 		for joint_name, seg_name in self.manager.base_to_segment.items():
 			segment = self.manager.segments_dict[seg_name]
 			joint = segment.base
@@ -108,6 +109,12 @@ class Cam_Arm(object):
 			x_pos.append(joint.pos[0])
 			y_pos.append(joint.pos[1])
 			z_pos.append(joint.pos[2])
+		
+			x_or = [joint.pos[0], joint.pos[0] + abs(axis_range[0][1]-axis_range[0][0]) * 0.05 * math.cos(joint.beta * (math.pi/180)) * math.cos(joint.alpha * (math.pi/180))]
+			y_or = [joint.pos[1], joint.pos[1] + abs(axis_range[1][1]-axis_range[1][0]) * 0.05 * math.cos(joint.beta * (math.pi/180)) * math.sin(joint.alpha * (math.pi/180))]
+			z_or = [joint.pos[2], joint.pos[2] + abs(axis_range[2][1]-axis_range[2][0]) * 0.05 * math.sin(joint.beta * (math.pi/180))]
+
+			ax.plot3D(x_or, y_or, z_or, marker = "o")
 
 			seg_end = segment.end
 
@@ -257,10 +264,10 @@ class Cam_Arm(object):
 		joint_dict = self.manager.get_joint_param()
 		base_alpha = joint_dict["base"]["orient"][0]
 		base_beta = joint_dict["base"]["orient"][1]
-		e1_beta = joint_dict["e1"]["orient"][1]
-		e2_beta = joint_dict["e2"]["orient"][1]
+		e1_beta = (joint_dict["e1"]["orient"][1] + base_beta + 360) % 360
+		e2_beta = (joint_dict["e2"]["orient"][1] + base_beta + e1_beta + 360) % 360
 		end_alpha = joint_dict["end"]["orient"][0]
-		end_beta = joint_dict["end"]["orient"][1]
+		end_beta = (joint_dict["end"]["orient"][1] + base_beta + e1_beta + e2_beta + 360) % 360
 
 		command = bytes(f"{base_alpha};{base_beta};{e1_beta};{e2_beta};{end_beta};{end_alpha}\n", 'utf-8')
 		print(F"SENDING COMMAND:: {command}")
