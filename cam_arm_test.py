@@ -2,7 +2,7 @@ import modern_sys
 
 test_bot = modern_sys.Cam_Arm(
 		base_pos = [0,0,0], 
-		base_orient = [0,0], 
+		base_orient = [0,90], 
 		seg_lengths = [10, 10, 10], 
 		range_trans = [
 			[[0,0,0], [0,0,0]],
@@ -52,7 +52,7 @@ test_bot.visualize(axis_range = [[-40,40],[-40,40],[0,40]], target = target, has
 
 test_bot_hard = modern_sys.Cam_Arm(
 		base_pos = [0,0,70], 
-		base_orient = [0,0], 
+		base_orient = [0,90], 
 		seg_lengths = [125, 125, 80], 
 		range_trans = [
 			[[0,0,0], [0,0,0]],
@@ -61,13 +61,14 @@ test_bot_hard = modern_sys.Cam_Arm(
 			[[0,0,0], [0,0,0]]
 			], 
 		range_rot = [
-			[[0,-70 - 90], [360, 70 - 90]],
-			[[0, -180], [0, 0]],
-			[[0, -180], [0, 0]],
-			[[0, 0],[0, 360]]
+			[[0,15], [180, 165]],
+			[[0, 0], [0, 180]],
+			[[0, 0], [0, 180]],
+			[[0, 10],[180, 73]]
 			],
 		tol = 0.1,
-		comm_line = 'COM3', baud_rate = 115200, 
+		cam_orient = 0,
+		comm_line = 'COM3', baud_rate = 9600, 
 		hard_run = True
 		)
 

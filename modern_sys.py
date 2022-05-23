@@ -261,6 +261,7 @@ class Cam_Arm(object):
 		time.sleep(10)
 
 	def send_angles(self):
+		'''
 		joint_dict = self.manager.get_joint_param()
 		base_alpha = joint_dict["base"]["orient"][0]
 		base_beta = joint_dict["base"]["orient"][1]
@@ -268,6 +269,16 @@ class Cam_Arm(object):
 		e2_beta = (joint_dict["e2"]["orient"][1] + base_beta + e1_beta + 360) % 360
 		end_alpha = joint_dict["end"]["orient"][0]
 		end_beta = (joint_dict["end"]["orient"][1] + base_beta + e1_beta + e2_beta + 360) % 360
+		'''
+		#To compensate for the changing frame of reference for each servo
+		#Take the beta difference between adjacent segment  and add 90 (as the 0 is 90 degree from the segment)
+		seg_dict = self.manager.get_segment_param()
+		base_alpha = seg_dict["base_e1"]["alpha"]
+		base_beta = seg_dict["base_e1"]["beta"]
+		e1_beta = (seg_dict["e1_e2"]["beta"] - base_beta + 90 + 360) % 360
+		e2_beta = (seg_dict["e2_end"]["beta"] - seg_dict["e1_e2"]["beta"] + 90 + 360) % 360
+		end_alpha = self.manager.end_joint.orient[0]
+		end_beta = self.manager.end_joint.orient[1]
 
 		command = bytes(f"{base_alpha};{base_beta};{e1_beta};{e2_beta};{end_beta};{end_alpha}\n", 'utf-8')
 		print(F"SENDING COMMAND:: {command}")
