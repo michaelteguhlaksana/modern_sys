@@ -1,5 +1,7 @@
 import modern_sys
 
+import math
+
 test_bot = modern_sys.Cam_Arm(
 		base_pos = [0,0,0], 
 		base_orient = [0,90], 
@@ -73,3 +75,15 @@ test_bot_hard = modern_sys.Cam_Arm(
 		)
 
 test_bot_hard.visualize(axis_range = [[-300,300],[-300,300],[0,300]])
+
+max_l = sum([125, 125, 80])
+
+test_pos = [
+	[0,0,max_l], #Test straight up
+	[max_l* math.cos(180/math.pi * 45) * math.sin(180/math.pi * 45), max_l* math.cos(180/math.pi * 45) * math.cos(180/math.pi * 45), max_l* math.sin(180/math.pi * 45)],# Test 45deg on all axis
+	[125, 250, 250] #Some random numbers
+]
+
+for test in test_pos:
+	test_bot_hard.end_to_target(test)
+	
