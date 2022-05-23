@@ -236,6 +236,12 @@ class Cam_Arm(object):
 
 		return reach
 
+
+	def upate_cam_orient (angle):
+		self.manager.end_joint.move(trans = [0,0,0], [target, 0])
+		if self.hard_run:
+			self.send_angles()
+
 	def home(self):
 		for joint_name, seg_name in self.manager.base_to_segment.items():
 			seg = self.manager.segments_dict[seg_name]
