@@ -6,6 +6,12 @@ import math
 import serial
 import time
 
+'''
+import logging
+
+logging.basicConfig(filename='modern_sys.log', encoding='utf-8', level=logging.DEBUG)
+'''
+
 
 class Cam_Arm(object):
 	"""
@@ -46,8 +52,8 @@ class Cam_Arm(object):
 		self.Base = Joint(
 			name = "base", 
 			dof = [[0,0,0],[1,1]], 
-			pos = self.home_pos["base"],
-			orient = self.home_orient["base"],
+			pos = self.home_pos["base"].copy(),
+			orient = self.home_orient["base"].copy(),
 			range_trans = self.range_trans[0],
 			range_rot = self.range_rot[0]
 			)
@@ -55,8 +61,8 @@ class Cam_Arm(object):
 		self.Elbow1 = Joint(
 			name = "e1", 
 			dof = [[0,0,0],[0,1]], 
-			pos = self.home_pos["e1"],
-			orient = self.home_orient["e1"],
+			pos = self.home_pos["e1"].copy(),
+			orient = self.home_orient["e1"].copy(),
 			range_trans = self.range_trans[1],
 			range_rot = self.range_rot[1]
 			)
@@ -64,17 +70,17 @@ class Cam_Arm(object):
 		self.Elbow2 = Joint(
 			name = "e2", 
 			dof = [[0,0,0],[0,1]], 
-			pos = self.home_pos["e2"],
-			orient = self.home_orient["e2"],
+			pos = self.home_pos["e2"].copy(),
+			orient = self.home_orient["e2"].copy(),
 			range_trans = self.range_trans[2],
 			range_rot = self.range_rot[2]
 			)
 
 		self.End = Joint(
 			name = "end", 
-			dof = [[0,0,0],[0,1]], 
-			pos = self.home_pos["end"],
-			orient = self.home_orient["end"],
+			dof = [[0,0,0],[1,1]], 
+			pos = self.home_pos["end"].copy(),
+			orient = self.home_orient["end"].copy(),
 			range_trans = self.range_trans[3],
 			range_rot = self.range_rot[3]
 			)
@@ -204,7 +210,7 @@ class Cam_Arm(object):
 		4. Repeat until the base is reached
 		5. Shift the base and all other segment to the base's original position
 		'''
-
+		#target = [tar - base for tar, base in zip(target, self.manager.base_joint.pos)]
 		t_x, t_y, t_z = target
 
 		# 1. Rotate the base to target to allow 2D IK
@@ -238,7 +244,7 @@ class Cam_Arm(object):
 
 
 	def upate_cam_orient (angle):
-		self.manager.end_joint.move(trans = [0,0,0], [target, 0])
+		self.manager.end_joint.move(trans = [0,0,0], rot = [angle-self.manager.end_joint.orient[0], 0])
 		if self.hard_run:
 			self.send_angles()
 
