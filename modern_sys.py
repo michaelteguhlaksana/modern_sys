@@ -153,7 +153,6 @@ class Cam_Arm(object):
 		if save:
 			fig.savefig(plot_name)
 
-
 		plt.show()
 
 
@@ -544,6 +543,14 @@ class HaarCascadeClassifier(object):
 		data['x'] = data['x'] + probe_x
 		data['y'] = data['y'] + probe_y
 		data.to_csv(os.path.join(self.result_folder + '/','from_probe.csv'))
+
+
+	def get_pos(self, filename):
+		positions = pd.read_csv(filename, index_col = 0)
+
+		positions.columns=["X","Y"]
+
+		return [[positions.iat[i-1, 0],positions.iat[i-1, 1]] for i in range(len(positions)) ]
 
 
 
