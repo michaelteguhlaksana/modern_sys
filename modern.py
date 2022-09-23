@@ -271,7 +271,7 @@ class SegmentManager(object):
 
 		#Move end-effector
 
-		segment.end.shift(tot_end_pos, tot_end_orient)
+		segment.end.shift(tot_end_pos, [0]*3)
 
 	def get_joint_param(self):
 		param = {}
