@@ -8,6 +8,8 @@ import time
 import cv2
 import PySimpleGUI as sg
 import pandas as pd
+import numpy as np
+import os
 
 '''
 import logging
@@ -21,7 +23,7 @@ class Cam_Arm(object):
 	A Robot arm model for holding the camera for the object recognition
 
 	"""
-	def __init__(self, base_pos, base_orient, seg_lengths, range_trans, range_rot, tol = 0.01, cam_orient = 270, comm_line = None, baud_rate = None, cam_num = None, hard_run = False):
+	def __init__(self, base_pos, base_orient, seg_lengths, range_trans, range_rot, calibUnit = 1, tol = 0.01, cam_orient = 270, comm_line = None, baud_rate = None, cam_num = None, cam_res_folder = None, hard_run = False):
 		super(Cam_Arm, self).__init__()
 		self.home_base_pos = base_pos
 		self.home_base_orient = base_orient
@@ -30,14 +32,17 @@ class Cam_Arm(object):
 		self.range_rot = range_rot
 		self.tol = tol
 
-		self.cam_num = cam_num
-		self.cam = cv2.VideoCapture(self.cam_num)
-
+		
 		self.hard_run = hard_run
 		self.baud_rate = baud_rate
 		self.comm_line = comm_line
 		if self.hard_run:
 			self.cnc = serial.Serial(self.comm_line, self.baud_rate, timeout=1)
+			self.cam_num = cam_num
+			self.cam = cv2.VideoCapture(self.cam_num)
+
+			self.classifier = HaarCascadeClassifier(mask_path = "./masks/haarcascade_device.xml", result_folder = cam_res_folder, calibUnit=calibUnit, vid_cap = self.cam)
+
 
 		self.home_pos = {
 			"base" : self.home_base_pos.copy(),
@@ -84,7 +89,7 @@ class Cam_Arm(object):
 
 		self.End = Joint(
 			name = "end", 
-			dof = [[0,0,0],[1,1]], 
+			dof = [[0,0,0],[0,1]], 
 			pos = self.home_pos["end"].copy(),
 			orient = self.home_orient["end"].copy(),
 			range_trans = self.range_trans[3],
@@ -205,6 +210,10 @@ class Cam_Arm(object):
 			
 		return beta_res, reach
 
+	def update_cam_orient (self, angle):
+		self.manager.end_joint.move(trans = [0,0,0], rot = [0, angle-self.manager.end_joint.orient[1]])
+		if self.hard_run:
+			self.send_angles()
 		
 	def end_to_target(self, target, iterate = 100):
 		'''
@@ -247,12 +256,6 @@ class Cam_Arm(object):
 
 		return reach
 
-
-	def upate_cam_orient (angle):
-		self.manager.end_joint.move(trans = [0,0,0], rot = [angle-self.manager.end_joint.orient[0], 0])
-		if self.hard_run:
-			self.send_angles()
-
 	def home(self):
 		for joint_name, seg_name in self.manager.base_to_segment.items():
 			seg = self.manager.segments_dict[seg_name]
@@ -294,8 +297,8 @@ class Cam_Arm(object):
 		base_beta = seg_dict["base_e1"]["beta"]
 		e1_beta = (seg_dict["e1_e2"]["beta"] - base_beta + 90 + 360) % 360
 		e2_beta = (seg_dict["e2_end"]["beta"] - seg_dict["e1_e2"]["beta"] + 90 + 360) % 360
-		end_alpha = self.manager.end_joint.orient[0]
-		end_beta = self.manager.end_joint.orient[1]
+		end_alpha = self.End.orient[0]
+		end_beta = self.End.orient[1]
 
 		command = bytes(f"{base_alpha};{base_beta};{e1_beta};{e2_beta};{end_beta};{end_alpha}\n", 'utf-8')
 		print(F"SENDING COMMAND:: {command}")
@@ -303,11 +306,42 @@ class Cam_Arm(object):
 		self.cnc.write(command)
 		time.sleep(2)
 
-	def capture(self):
-		pass
-
 	def detect(self):
-		pass
+		raw_pos, frame_center = self.classifier.detect()
+
+		offset = self.manager.end_joint.pos[:2]
+
+		self.classifier.save_pos(raw_pos, offset, frame_center)
+
+		return self.classifier.get_pos(os.path.join(self.result_folder + '/','from_cam.csv'))
+
+	def capture_image(self, cap_pos, filename):
+		self.end_to_target(cap_pos)
+
+		#Wait for 2 seconds to ensure everything stabilizes
+		time.sleep(2)
+
+		layout = [
+			[sg.Text("Capture image", size=(50, 0), justification="center")],
+			[sg.Button("OK", size=(10, 1))],
+		]
+
+		window = sg.Window("Capture", layout, location=(700, 100))
+
+		while True:
+			event, values = window.read(timeout=0)
+			_, frame = self.cam.read()
+			cv2.imshow('', frame)
+
+			if event == "OK" or event == sg.WIN_CLOSED or event is None:
+				break
+
+			k = cv2.waitKey(5) & 0xFF
+			if k == 27:         # wait for ESC key to exit
+				break
+
+		cv2.imwrite(filename, frame)
+
 		
 
 class HaarCascadeClassifier(object):
@@ -316,16 +350,12 @@ class HaarCascadeClassifier(object):
 	Adapted from the PRIMITV system
 
 	"""
-	def __init__(self, mask_path, result_folder, vid_cap):
+	def __init__(self, mask_path, result_folder, calibUnit, vid_cap = None):
 		super(HaarCascadeClassifier, self).__init__()
 		self.cascade_device = cv2.CascadeClassifier(mask_path)
 		self.cam = vid_cap
 		self.result_folder = result_folder
 		self.calibUnit = calibUnit
-
-		self.probe_pos = probe_pos
-		self.cam_pos = cam_pos
-		self.offset = [probe + cam for probe, cam in zip(self.probe_pos, self.cam_pos)]
 		
 
 		self.layout = [
@@ -407,6 +437,9 @@ class HaarCascadeClassifier(object):
 	def detect(self):
 
 		data = {}
+		center_x = 0
+		center_y = 0
+
 		while (1):
 			event, values = self.window.read(timeout=0)
 
@@ -434,6 +467,10 @@ class HaarCascadeClassifier(object):
 
 			# Capture the frame
 			_, frame = self.cam.read()
+
+			#Testing with older images
+			#frame = cv2.imread('./test_image/test1_crop.png')
+
 			center_x = int(frame.shape[1] / 2)
 			center_y = int(frame.shape[0] / 2)
 
@@ -447,7 +484,7 @@ class HaarCascadeClassifier(object):
 			gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 			# Detect the object using the Cascade
-			object_device = cascade_device.detectMultiScale(image=gray_img,scaleFactor=scaleFactor_device,minNeighbors=neig_device)
+			object_device = self.cascade_device.detectMultiScale(image=gray_img,scaleFactor=scaleFactor_device,minNeighbors=neig_device)
 					
 			# Sorting the devices from left-to-right and top-to-bottom
 			if len(object_device) < 1:
@@ -522,6 +559,12 @@ class HaarCascadeClassifier(object):
 
 		fig.savefig(os.path.join(self.result_folder + '/','haarcascade.png'), dpi=fig.dpi)
 
+		return data, (center_x, center_y)
+
+
+	def save_pos (self, data, offset, center_coord):
+		center_x, center_y = center_coord
+		offset_x, offset_y = offset
 		# Save CSV file: Coordinates
 		data = pd.DataFrame(data)
 		data = data.T
@@ -530,19 +573,14 @@ class HaarCascadeClassifier(object):
 		data.to_csv(os.path.join(self.result_folder + '/','from_origin_pixel.csv'))
 
 		# Save CSV file: Coordinates from Center
-		data['x'] = (data['x'] - center_x) / calibUnit
-		data['y'] = (center_y - data['y']) / calibUnit
+		data['x'] = (data['x'] - center_x) / self.calibUnit
+		data['y'] = (center_y - data['y']) / self.calibUnit
 		data.to_csv(os.path.join(self.result_folder + '/','from_center.csv'))
 
-		# Save CSV file: Coordinates from Camera
-		data['x'] = data['x'] + cam_x 
-		data['y'] = data['y'] + cam_y
+		# Save CSV file: Coordinates from Arm Origin
+		data['x'] = data['x'] + offset_x 
+		data['y'] = data['y'] + offset_y
 		data.to_csv(os.path.join(self.result_folder + '/','from_cam.csv'))
-
-		# Save CSV file: Coordinates from Probe
-		data['x'] = data['x'] + probe_x
-		data['y'] = data['y'] + probe_y
-		data.to_csv(os.path.join(self.result_folder + '/','from_probe.csv'))
 
 
 	def get_pos(self, filename):
