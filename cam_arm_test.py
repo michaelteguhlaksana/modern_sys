@@ -4,7 +4,7 @@ import math
 
 import logging
 
-logging.basicConfig(filename='cam_arm_test.log', encoding='utf-8', level=logging.INFO)
+logging.basicConfig(filename='cam_arm_test.log', filemode = 'w', encoding='utf-8', level=logging.INFO)
 
 
 '''
@@ -77,12 +77,12 @@ test_bot_hard = modern_sys.Cam_Arm(
 			[[0,15 - 90], [180, 165 - 90]],
 			[[0, 0 - 90], [0.01, 180 - 90]],
 			[[0, 0 - 90], [0.01, 180 - 90]],
-			[[0 - 90, 10],[180 - 90, 73]]
+			[[0, 0],[180, 180]]
 			],
 		tol = 0.1,
 		cam_orient = 0,
-		comm_line = 'COM3', baud_rate = 9600, 
-		hard_run = False
+		comm_line = 'COM5', baud_rate = 9600, 
+		hard_run = True
 		)
 
 print(f"BASE ORIENT::{test_bot_hard.manager.base_joint.orient}")
@@ -110,7 +110,7 @@ max_l = sum([125, 125, 80])
 
 test_pos = [
 	[max_l* math.cos(math.pi/180 * 45) * math.sin(math.pi/180 * 45), max_l* math.cos(math.pi/180 * 45) * math.cos(math.pi/180 * 45), max_l* math.sin(math.pi/180 * 45) + 70],# Test 45deg on all axis
-	[125, 125, 125 + 70], #Some random numbers
+	[125, 205, 125 + 70], #Some random numbers
 	[200, 200, 100 + 70]
 	#[0,0,max_l + 70] #Test straight up. Does not work?!
 ]
@@ -190,3 +190,7 @@ for seg_name, param in test_bot_hard.manager.get_segment_param().items():
 	logging.info("------SEGMENT "+ seg_name+ ":")
 	logging.info(param)
 test_bot_hard.visualize(axis_range = [[-300,300],[-300,300],[0,300]],  plot_name = F"TAR_HOME.png", save = True)
+
+
+
+test_bot_hard.update_cam_orient(90)
